@@ -1,6 +1,7 @@
 # 使用 Node.js 作為基礎映像
 FROM docker.io/library/node:21-alpine3.18 AS RUNNER
 
+#RUN mkdir /backend
 # 設定工作目錄
 WORKDIR /backend
 
@@ -14,5 +15,7 @@ EXPOSE 8888
 # 安裝應用程式的相依套件
 RUN npm install
 
+RUN npm run build 
+
 # 啟動應用程式的開發模式
-CMD ["npm", "run", "dev"]
+CMD ["npm", "run", "start"]
