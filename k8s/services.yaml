@@ -1,24 +1,41 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: app-clusterip
+  name: backend-service
 spec:
   type: ClusterIP
   selector:
-    app: app
+    app: backend
   ports:
     - protocol: TCP
-      port: 3000
-      targetPort: 3000
+      port: 8888
+      targetPort: 8888
+
+---
 apiVersion: v1
 kind: Service
 metadata:
-  name: db-clusterip
+  name: frontend-service
 spec:
   type: ClusterIP
   selector:
-    app: mariadb
+    app: frontend
   ports:
     - protocol: TCP
-      port: 3306
-      targetPort: 3306
+      port: 5173
+      targetPort: 5173
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-service
+spec:
+  type: ClusterIP
+  selector:
+    app: mongo-db
+  ports:
+    - protocol: TCP
+      port: 27017
+      targetPort: 27017
+  
