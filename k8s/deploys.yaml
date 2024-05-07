@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend-deploy-app
+  template:
+    metadata:
+      labels:
+        app: frontend-deploy-app
+    spec:
+      containers:
+        - name: frontend-container
+          image: ghcr.io/yikaiwu1125/hw_frontend:latest
+          ports:
+            - containerPort: 5173
+          env:
+            - name: API_BASE_URL
+              value: backend
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5173
+            initialDelaySeconds: 10
+            periodSeconds: 5
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend-deploy-app
+  template:
+    metadata:
+      labels:
+        app: backend-deploy-app
+    spec:
+      containers:
+        - name: backend-container
+          image: ghcr.io/yikaiwu1125/hw_backend:latest
+          ports:
+            - containerPort: 8888
+          env:
+            - name: MONGO_CONNECTION_STRING
+              value: "mongodb://mongo:27017/mongo"
+          livenessProbe:
+            tcpSocket:
+              port: 8888
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongo-db-deploy-app
+  template:
+    metadata:
+      labels:
+        app: mongo-db-deploy-app
+    spec:
+      containers:
+        - name: mongo-container
+          image: mongo:latest
+          ports:
+            - containerPort: 27017
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 15
+            periodSeconds: 10
