@@ -20,8 +20,12 @@ spec:
           env:
             - name: API_BASE_URL
               value: backend
-       
-
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5173
+            initialDelaySeconds: 10
+            periodSeconds: 5
 
 ---
 apiVersion: apps/v1
@@ -46,6 +50,11 @@ spec:
           env:
             - name: MONGO_CONNECTION_STRING
               value: "mongodb://mongo:27017/mongo"
+          livenessProbe:
+            tcpSocket:
+              port: 8888
+            initialDelaySeconds: 15
+            periodSeconds: 10
 
 ---
 apiVersion: apps/v1
@@ -67,3 +76,8 @@ spec:
           image: mongo:latest
           ports:
             - containerPort: 27017
+          livenessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 15
+            periodSeconds: 10
