@@ -9,6 +9,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        directory: ['backend', 'frontend']
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v2
@@ -19,33 +23,62 @@ jobs:
         node-version: '14'
 
     - name: Install dependencies
-      run: npm install
+      run: |
+        cd ${{ matrix.directory }}
+        npm install
 
     - name: Run unit tests
-      run: npm test
+      run: |
+        cd ${{ matrix.directory }}
+        npm test
       continue-on-error: true
 
+    - name: Generate coverage report
+      run: |
+        cd ${{ matrix.directory }}
+        npm run coverage
+
     - name: Upload coverage report
-      if: failure()
       uses: actions/upload-artifact@v2
       with:
         name: coverage-report
-        path: coverage/
+        path: ${{ matrix.directory }}/coverage/
 
     - name: Check for lower coverage
       run: |
+        cd ${{ matrix.directory }}
         PREVIOUS_COVERAGE=$(cat coverage/coverage-summary.json | jq .total.lines.pct)
         CURRENT_COVERAGE=$(cat new-coverage/coverage-summary.json | jq .total.lines.pct)
-        if (( $(echo "$CURRENT_COVERAGE < $PREVIOUS_COVERAGE" |bc -l) )); then
+        if (( $(echo "$CURRENT_COVERAGE < $PREVIOUS_COVERAGE" | bc -l) )); then
           echo "Coverage decreased. Failing the job."
           exit 1
-        fi
+
+    - name: Comment on commit
+      run: |
+        curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+        -H "Content-Type: application/json" \
+        -d '{"body":"New commit detected, running tests and checking coverage."}' \
+        "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments"
 
     - name: Format code with Prettier
-      run: npx prettier --write "backend/**/*.ts" "frontend/**/*.ts" "frontend/**/*.tsx"
+      run: |
+        cd ${{ matrix.directory }}
+        npx prettier --write "**/*.ts" "**/*.tsx"
+
+    - name: Check if any files were formatted
+      id: format_check
+      run: |
+        cd ${{ matrix.directory }}
+        if [[ -n $(git status --porcelain) ]]; then
+          echo "files_need_formatting=true" >> $GITHUB_ENV
+        else
+          echo "files_need_formatting=false" >> $GITHUB_ENV
+        fi
 
     - name: Create a commit for formatting changes
+      if: env.files_need_formatting == 'true'
       run: |
+        cd ${{ matrix.directory }}
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         git add .
@@ -53,3 +86,11 @@ jobs:
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Suggest improvements
+      run: |
+        cd ${{ matrix.directory }}
+        curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+        -H "Content-Type: application/json" \
+        -d '{"body":"Please review the following suggestions for improvement."}' \
+        "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}/comments"
