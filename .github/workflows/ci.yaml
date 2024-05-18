@@ -39,7 +39,8 @@ jobs:
         fi
 
     - name: Format code with Prettier
-      run: npx prettier --write .
+      run: |
+        npx prettier --write "backend/**/*.ts" "frontend/**/*.ts" "frontend/**/*.tsx"
 
     - name: Create a commit for formatting changes
       run: |
