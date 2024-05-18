@@ -1,0 +1,41 @@
+name: CD
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Kubernetes config
+      run: |
+        mkdir -p $HOME/.kube
+        echo "${{ secrets.KUBE_CONFIG }}" > $HOME/.kube/config
+        echo "Kubeconfig content:"
+        cat $HOME/.kube/config
+
+    - name: Log in to GitHub Container Registry
+      run: |
+        echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+    - name: Build and push frontend/backend Docker image
+      run: |
+        docker-compose up -d
+        docker push ghcr.io/yikaiwu1125/hw_frontend
+        docker push ghcr.io/yikaiwu1125/hw_backend
+
+    - name: Deploy to Kubernetes
+      run: |
+        kubectl apply -f k8s/deploys.yaml --validate=false
+        kubectl apply -f k8s/services.yaml --validate=false
+        kubectl apply -f k8s/ingress.yaml --validate=false
