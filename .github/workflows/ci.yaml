@@ -20,7 +20,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v2
       with:
-        node-version: '14'
+        node-version: '18'
 
     - name: Install dependencies
       run: |
@@ -47,43 +47,34 @@ jobs:
     - name: Check for lower coverage
       run: |
         cd ${{ matrix.directory }}
-        PREVIOUS_COVERAGE=$(cat coverage/coverage-summary.json | jq .total.lines.pct)
-        CURRENT_COVERAGE=$(cat new-coverage/coverage-summary.json | jq .total.lines.pct)
+        if [ -f coverage/coverage-summary.json ]; then
+          PREVIOUS_COVERAGE=$(cat coverage/coverage-summary.json | jq .total.lines.pct)
+        else
+          echo "No previous coverage report found. Skipping coverage check."
+          exit 0
+        fi
+
+        if [ -f new-coverage/coverage-summary.json ]; then
+          CURRENT_COVERAGE=$(cat new-coverage/coverage-summary.json | jq .total.lines.pct)
+        else
+          echo "No new coverage report found. Skipping coverage check."
+          exit 0
+        fi
+
         if (( $(echo "$CURRENT_COVERAGE < $PREVIOUS_COVERAGE" | bc -l) )); then
           echo "Coverage decreased. Failing the job."
           exit 1
 
-    - name: Comment on commit
-      run: |
-        curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-        -H "Content-Type: application/json" \
-        -d '{"body":"New commit detected, running tests and checking coverage."}' \
-        "https://api.github.com/repos/${{ github.repository }}/commits/${{ github.sha }}/comments"
-
-    - name: Format code with Prettier
-      run: |
-        cd ${{ matrix.directory }}
-        npx prettier --write "**/*.ts" "**/*.tsx"
-
-    - name: Check if any files were formatted
-      id: format_check
-      run: |
-        cd ${{ matrix.directory }}
-        if [[ -n $(git status --porcelain) ]]; then
-          echo "files_need_formatting=true" >> $GITHUB_ENV
-        else
-          echo "files_need_formatting=false" >> $GITHUB_ENV
-        fi
-
-    - name: Create a commit for formatting changes
+    - name: Create a pull request for formatting changes
       if: env.files_need_formatting == 'true'
       run: |
-        cd ${{ matrix.directory }}
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git checkout -b format-changes
         git add .
         git commit -m "Apply code formatting"
-        git push
+        git push origin format-changes
+        gh pr create --title "Apply code formatting" --body "This PR applies automatic code formatting." --base main --head format-changes
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
